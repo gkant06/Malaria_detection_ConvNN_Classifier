@@ -67,6 +67,12 @@ test_ds = CustomDataset(test_labels, test_img_loc, transform=preprocess)
 test_loader = DataLoader(test_ds, batch_size=200, shuffle=True)
 print(len(test_loader.dataset))
 
+hidden_loc = '/jet/home/gkant/hidden_test/hidden_test/'
+hidden_labels = '/jet/home/gkant/NN_HW2/sample_submission.csv'
+hidden_ds = CustomDataset(hidden_labels, hidden_loc, transform=preprocess)
+hidden_loader = DataLoader(hidden_ds)
+print(len(hidden_loader.dataset))
+
 
 '''
 # Print a summary using torchinfo. This is to view input and outputs of each layer and modify as required according to dataset
@@ -253,7 +259,7 @@ results = train(model=model,
                 test_dataloader=test_loader,
                 optimizer=optimizer,
                 loss_fn=loss_fn,
-                epochs=5,
+                epochs=20,
                 device=device)
 
 end_time = time.time()
@@ -264,3 +270,34 @@ print(f"Total training time: {(end_time-start_time)/60:.3f} minutes")
 results_df = pd.DataFrame(results)
 results_df.to_csv('/jet/home/gkant/NN_HW2/CNN_v2_results.csv', index=False)
 
+# Prediction for hidden test images
+
+def hidden_test_prediction(model, dataloader, device):
+
+    model.eval()
+    pred_labels = []
+    # Turn on inference context manager
+    with torch.inference_mode():
+        # Loop through hidden_test dataloader
+        for batch, (X, y) in enumerate(dataloader):
+                # Send data to target device
+                X, y = X.to(device), y.to(device)
+
+                # Make predictions
+                ht_pred_logits = model(X)
+                ht_pred_labels = ht_pred_logits.argmax(dim=1)
+                
+                for i in ht_pred_labels:
+                    pred_labels.append(i.item())
+                    
+    return pred_labels
+    
+ht_pred = hidden_test_prediction(model, hidden_loader, device)
+
+# Importing input file for submission
+hidden_test_df = pd.read_csv('/jet/home/gkant/NN_HW2/sample_submission.csv')
+
+# Obtaining final file for submission
+ht_pred_sub = pd.DataFrame({'img_name':hidden_test_df['img_name'],
+                        'label': ht_pred})
+ht_pred_sub.to_csv('/jet/home/gkant/NN_HW2/CNN_v2_ht_pred_sub.csv', index=False)
